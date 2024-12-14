@@ -138,6 +138,7 @@ class NewsCrawler:
                             'source': source_name,
                             'author': entry.get('author', ''),
                             'categories': entry.get('tags', []),
+                            'id':entry.id,
                         }
                         
                         logger.debug(f"Found article: {json.dumps({'title': article['title'], 'url': article['url']}, indent=2)}")

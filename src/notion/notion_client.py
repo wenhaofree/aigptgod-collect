@@ -41,15 +41,15 @@ class NotionSync:
             existing_page = self._find_today_page()
             
             if existing_page:
-                # If page exists, add sections to it
-                logger.info("Found existing page for today, adding sections...")
-                self._add_sections(existing_page['id'], report['sections'])
+                # If page exists, add articles to it
+                logger.info("Found existing page for today, adding articles...")
+                self._add_articles(existing_page['id'], report['articles'])
                 return existing_page['url']
             else:
                 # If no page exists, create new one
                 logger.info("Creating new page for today...")
                 page = self._create_report_page(report)
-                self._add_sections(page['id'], report['sections'])
+                self._add_articles(page['id'], report['articles'])
                 return page['url']
                 
         except Exception as e:
@@ -121,6 +121,9 @@ class NotionSync:
             
     def _get_page_properties(self, report: Dict) -> Dict:
         """Get page properties for Notion page creation."""
+        # Get all article IDs for this report
+        article_ids = [article['id'] for article in report.get('articles', [])]
+        
         return {
             'title': {  # This is the title property
                 'title': [
@@ -155,119 +158,128 @@ class NotionSync:
                 'multi_select': [
                     {'name': 'AI'},
                 ]
+            },
+            'article_ids': {  # Store all article IDs in a multi-select property
+                'multi_select': [{'name': article_id} for article_id in article_ids]
             }
         }
 
-    def _add_sections(self, parent_id: str, sections: Dict) -> None:
-        """Add report sections as blocks in the page."""
+    def _add_articles(self, parent_id: str, articles: List[Dict]) -> None:
+        """Add articles as blocks in the page."""
         try:
-            for section_name, section_data in sections.items():
-                blocks = []
-                
-                # Add section header
-                # blocks.append({
-                #     'type': 'heading_2',
-                #     'heading_2': {
-                #         'rich_text': [
-                #             {
-                #                 'type': 'text',
-                #                 'text': {'content': section_data['title']}
-                #             }
-                #         ]
-                #     }
-                # })
-                
-                # Add articles
-                for article in section_data['articles']:
-                    # Article title with link
-                    # blocks.append({
-                    #     'type': 'paragraph',
-                    #     'paragraph': {
-                    #         'rich_text': [
-                    #             {
-                    #                 'type': 'text',
-                    #                 'text': {
-                    #                     'content': article['title'],
-                    #                     'link': {'url': article['url']}
-                    #                 }
-                    #             }
-                    #         ]
-                    #     }
-                    # })
+            blocks = []
+            added_articles = []
+            
+            for article in articles:
+                # Check if article already exists in any Notion page
+                if article.get('id') and self._article_exists(article['id']):
+                    logger.info(f"Article {article['title']} already exists in Notion, skipping...")
+                    continue
 
-                    if article.get('title'):
-                        blocks.append({
-                            'type': 'heading_2',
-                            'heading_2': {
-                                'rich_text': [
-                                    {
-                                        'type': 'text',
-                                        'text': {'content': article['title']}
-                                    }
-                                ]
+                # Add article title with link
+                blocks.append({
+                    'type': 'heading_2',
+                    'heading_2': {
+                        'rich_text': [
+                            {
+                                'type': 'text',
+                                'text': {
+                                    'content': article['title'],
+                                    'link': {'url': article['url']}
+                                }
                             }
-                        })
-                    
-                    # Article summary
-                    if article.get('summary'):
-                        blocks.append({
-                            'type': 'paragraph',
-                            'paragraph': {
-                                'rich_text': [
-                                    {
-                                        'type': 'text',
-                                        'text': {'content': article['summary']}
-                                    }
-                                ]
-                            }
-                        })
-                    
-                    # Source information
+                        ]
+                    }
+                })
+                
+                # Add summary
+                if article.get('summary'):
                     blocks.append({
-                        'type': 'bulleted_list_item',
-                        'bulleted_list_item': {
+                        'type': 'paragraph',
+                        'paragraph': {
                             'rich_text': [
                                 {
                                     'type': 'text',
-                                    'text': {
-                                        'content': f"Source: {article['source']}"
-                                    }
+                                    'text': {'content': article['summary']}
                                 }
                             ]
                         }
                     })
-
-                    # Title with link
+                
+                # Add image if available
+                if article.get('image_url'):
                     blocks.append({
-                        'type': 'bulleted_list_item',
-                        'bulleted_list_item': {
-                            'rich_text': [
-                                {
-                                    'type': 'text',
-                                    'text': {
-                                        'content': article['title'],
-                                        'link': {'url': article['url']}
-                                    }
-                                }
-                            ]
+                        'type': 'image',
+                        'image': {
+                            'type': 'external',
+                            'external': {
+                                'url': article['image_url']
+                            }
                         }
                     })
-                    
-                    # Add divider between articles
-                    blocks.append({
-                        'type': 'divider',
-                        'divider': {}
-                    })
                 
-                # Add all blocks to the page
+                # Add metadata (published date)
+                blocks.append({
+                    'type': 'bulleted_list_item',
+                    'bulleted_list_item': {
+                        'rich_text': [
+                            {
+                                'type': 'text',
+                                'text': {
+                                    'content': f"Published: {article['published_date']}"
+                                }
+                            }
+                        ]
+                    }
+                })
+                
+                # Add divider between articles
+                blocks.append({
+                    'type': 'divider',
+                    'divider': {}
+                })
+                
+                added_articles.append(article['id'])
+            
+            if blocks:  # Only append if there are new articles
+                # Add the blocks
                 self.client.blocks.children.append(
                     block_id=parent_id,
                     children=blocks
                 )
                 
+                # Update the page's article_ids property to include newly added articles
+                if added_articles:
+                    self.client.pages.update(
+                        page_id=parent_id,
+                        properties={
+                            'article_ids': {
+                                'multi_select': [{'name': article_id} for article_id in added_articles]
+                            }
+                        }
+                    )
+            
         except Exception as e:
-            logger.error(f"Error adding sections: {str(e)}")
+            logger.error(f"Error adding articles: {str(e)}")
             raise
+
+    def _article_exists(self, article_id: str) -> bool:
+        """Check if an article already exists in any Notion page by its content ID."""
+        try:
+            # Query all pages in the database
+            response = self.client.databases.query(
+                database_id=self.database_id,
+                filter={
+                    "property": "article_ids",  # This is a multi-select property in Notion
+                    "multi_select": {
+                        "contains": article_id
+                    }
+                }
+            )
+            return len(response['results']) > 0
+        except Exception as e:
+            logger.error(f"Error checking article existence: {str(e)}")
+            return False
 
     def _cleanup_old_reports(self) -> None:
         """Clean up old reports based on retention policy."""

@@ -15,12 +15,6 @@ class ReportGenerator:
     def __init__(self, config: Dict):
         """Initialize the report generator with configuration."""
         self.config = config
-        self.sections = [
-            'headlines',
-            'technical_updates',
-            'industry_news',
-            'policy_updates'
-        ]
         self.output_dir = Path(config.get('output_dir', 'data/reports'))
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -35,24 +29,12 @@ class ReportGenerator:
             Dict: Generated report with all sections
         """
         try:
-            # Organize articles by section
-            categorized = self._categorize_articles(articles)
-            
-            # Generate report sections
+            # Generate report with all articles
             report = {
                 'date': datetime.now().strftime('%Y-%m-%d'),
-                'sections': {}
+                'articles': [self._format_article(article) for article in articles],
+                'metadata': self._generate_metadata(articles)
             }
-            
-            # Generate each section
-            for section in self.sections:
-                report['sections'][section] = self._generate_section(
-                    section,
-                    categorized.get(section, [])
-                )
-            
-            # Add metadata
-            report['metadata'] = self._generate_metadata(articles)
             
             # Save report
             self._save_report(report)
@@ -62,68 +44,26 @@ class ReportGenerator:
             logger.error(f"Error generating report: {str(e)}")
             raise
 
-    def _categorize_articles(self, articles: List[Dict]) -> Dict[str, List[Dict]]:
-        """Categorize articles into different sections."""
-        categorized = {section: [] for section in self.sections}
-        
-        # Mapping from article categories to report sections
-        category_mapping = {
-            'technical_innovation': 'technical_updates',
-            'business_application': 'industry_news',
-            'policy_regulation': 'policy_updates',
-            'research_progress': 'technical_updates'
-        }
-        
-        for article in articles:
-            # Top articles go to headlines
-            if article['relevance_score'] > 0.8:
-                categorized['headlines'].append(article)
-            
-            # Add to appropriate section based on category
-            section = category_mapping.get(article['category'])
-            if section:
-                categorized[section].append(article)
-        
-        return categorized
-
-    def _generate_section(self, section: str, articles: List[Dict]) -> Dict:
-        """Generate content for a specific section."""
-        return {
-            'title': self._get_section_title(section),
-            'articles': [
-                self._format_article(article)
-                for article in articles[:5]  # Limit to top 5 articles per section
-            ]
-        }
-
     def _format_article(self, article: Dict) -> Dict:
         """Format an article for the report."""
-        return {
+        formatted = {
+            'id': article['id'],
             'title': article['title'],
             'summary': article['summary'],
-            'key_points': article['key_points'],
             'url': article['url'],
-            'sentiment': article['sentiment']['label'],
-            'source': article['source'],
             'published_date': article['published_date']
         }
-
-    def _get_section_title(self, section: str) -> str:
-        """Get the display title for a section."""
-        titles = {
-            'headlines': 'Today\'s Headlines',
-            'technical_updates': 'Technical Developments',
-            'industry_news': 'Industry Insights',
-            'policy_updates': 'Policy and Regulation Updates'
-        }
-        return titles.get(section, section.title())
+        
+        # Add optional image URL if available
+        if article.get('image_url'):
+            formatted['image_url'] = article['image_url']
+            
+        return formatted
 
     def _generate_metadata(self, articles: List[Dict]) -> Dict:
         """Generate report metadata."""
         return {
             'total_articles': len(articles),
-            'sources': list(set(a['source'] for a in articles)),
-            'categories': list(set(a['category'] for a in articles)),
             'generation_time': datetime.now().isoformat(),
             'version': '1.0'
         }
@@ -140,7 +80,7 @@ class ReportGenerator:
             logger.info(f"Report saved to {file_path}")
         except Exception as e:
             logger.error(f"Error saving report: {str(e)}")
-            raise 
+            raise
 
     def load_report(self, date_str: str) -> Dict:
         """
