@@ -1,0 +1,32 @@
+proxy_settings:
+  enabled: true
+  http: "http://127.0.0.1:7890"
+  https: "http://127.0.0.1:7890"
+  # Optional: Add authentication if needed
+  # auth:
+  #   username: user
+  #   password: pass
+
+news_sources:
+  techcrunch:
+    type: rsshub
+    feed_url: https://rsshub.app/techcrunch/news
+    keywords:
+      - ai
+      - artificial intelligence
+      - machine learning
+      - deep learning
+      - neural network
+      - gpt
+      - llm
+    parser_config:
+      title_selector: title
+      content_selector: description
+      link_selector: link
+      date_selector: pubDate
+  # Add more sources here as needed
+  # example_source:
+  #   feed_url: https://example.com/feed
+  #   keywords:
+  #     - keyword1
+  #     - keyword2

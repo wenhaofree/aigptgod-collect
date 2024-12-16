@@ -59,13 +59,30 @@ class Config:
     def _get_default_config(self) -> Dict:
         """Get default configuration."""
         return {
+            # News sources configuration
+            'news_sources': {
+                'techcrunch': {
+                    'type': 'rsshub',
+                    'feed_url': 'https://rsshub.app/techcrunch/news',
+                    'keywords': ['ai', 'artificial intelligence', 'machine learning', 'deep learning', 'neural network', 'gpt', 'llm'],
+                    'parser_config': {
+                        'title_selector': 'title',
+                        'content_selector': 'description',
+                        'link_selector': 'link',
+                        'date_selector': 'pubDate'
+                    }
+                }
+            },
+            
+            # Proxy settings
+            'proxy_settings': {
+                'enabled': True,
+                'http': 'http://127.0.0.1:7890',
+                'https': 'http://127.0.0.1:7890'
+            },
+            
             # Crawler configuration
             'crawler': {
-                'sources': {
-                    'techcrunch': 'https://techcrunch.com/',
-                    'mit_tech_review': 'https://www.technologyreview.com/',
-                    'ai_news': 'https://artificialintelligence-news.com/'
-                },
                 'update_interval': 3600,  # 1 hour
                 'max_articles_per_source': 50
             },

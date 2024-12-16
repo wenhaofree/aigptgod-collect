@@ -23,8 +23,8 @@ class AIReportGenerator:
         self.config = Config(config_path)
         self.config.setup_logging()
         
-        # Initialize components
-        self.crawler = NewsCrawler(self.config.get('crawler'))
+        # Initialize components with merged configurations
+        self.crawler = NewsCrawler(self.config.config)  # Pass the entire config
         self.processor = ContentProcessor(self.config.get('processor'))
         self.generator = ReportGenerator(self.config.get('generator'))
         self.notion_sync = NotionSync(self.config.get('notion'))
@@ -45,7 +45,7 @@ class AIReportGenerator:
             
             # Step 2: Process articles
             logger.info("Processing articles...")
-            processed_articles = await self.processor.process_articles(articles)
+            processed_articles = await self.processor.process_articles(articles[:2])
             logger.info(f"Processed {len(processed_articles)} articles")
             
             # Step 3: Generate report
@@ -53,8 +53,7 @@ class AIReportGenerator:
             report = await self.generator.generate_report(processed_articles)
             logger.info("Report generated successfully")
             
-            # report = self.generator.load_report('2024-12-12')
-
+            # report = self.generator.load_report('2024-12-16')
             # Step 4: Sync to Notion (now synchronous)
             logger.info("Syncing report to Notion...")
             notion_url = self.notion_sync.sync_report(report)

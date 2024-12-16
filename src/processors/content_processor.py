@@ -86,13 +86,13 @@ class ContentProcessor:
         """Process a single article with all analysis steps."""
         try:
             # Generate unique ID from URL and title
-            id_string = f"{article['url']}-{article['title']}"
+            id_string = f"{article['link']}-{article['title']}"
             
             # Create processed article with only required fields
             processed = {
                 'id': hashlib.md5(id_string.encode()).hexdigest(),
                 'title': article['title'],
-                'url': article['url'],
+                'url': article['link'],
                 'published_date': article.get('published_date', ''),
                 'summary': await self._generate_summary(article['content'])
             }

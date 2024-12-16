@@ -217,11 +217,6 @@ class NotionSync:
             added_articles = []
             
             for article in articles:
-                # Check if article already exists in any Notion page
-                if article.get('id') and self._article_exists(article['id']):
-                    logger.info(f"Article {article['title']} already exists in Notion, skipping...")
-                    continue
-                    
                 if len(article['summary'])>2000:continue
 
                 # Add article title with link
