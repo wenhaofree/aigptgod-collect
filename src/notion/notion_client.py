@@ -2,6 +2,8 @@
 Notion integration module for AI Daily Report Generator.
 """
 import logging
+import json
+import os
 from typing import Dict, List
 from datetime import datetime
 from notion_client import Client
@@ -14,6 +16,8 @@ class NotionSync:
     def __init__(self, config: Dict):
         """Initialize the Notion client with configuration."""
         self.config = config
+        self.notion_json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                                           'data', 'notion', 'notion.json')
         
         # Get API key from config
         api_key = config.get('api_key')
@@ -26,6 +30,30 @@ class NotionSync:
         if not self.database_id:
             raise ValueError("Notion database ID not found in configuration")
 
+    def _load_synced_articles(self) -> List[str]:
+        """Load previously synced article IDs from JSON file."""
+        try:
+            if os.path.exists(self.notion_json_path):
+                with open(self.notion_json_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    return data.get('article_ids', [])
+            return []
+        except Exception as e:
+            logger.error(f"Error loading synced articles: {str(e)}")
+            return []
+
+    def _save_synced_articles(self, article_ids: List[str]):
+        """Save synced article IDs to JSON file."""
+        try:
+            os.makedirs(os.path.dirname(self.notion_json_path), exist_ok=True)
+            existing_ids = self._load_synced_articles()
+            all_ids = list(set(existing_ids + article_ids))
+            
+            with open(self.notion_json_path, 'w', encoding='utf-8') as f:
+                json.dump({'article_ids': all_ids}, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"Error saving synced articles: {str(e)}")
+
     def sync_report(self, report: Dict) -> str:
         """
         Sync a report to Notion database.
@@ -37,20 +65,41 @@ class NotionSync:
             str: URL of the created Notion page
         """
         try:
+            # Load existing synced article IDs
+            synced_ids = self._load_synced_articles()
+            
+            # Filter out already synced articles
+            new_articles = [
+                article for article in report.get('articles', [])
+                if article['id'] not in synced_ids
+            ]
+            
+            if not new_articles:
+                logger.info("No new articles to sync")
+                return None
+
+            # Update report with only new articles
+            report['articles'] = new_articles
+
             # Try to find today's page
             existing_page = self._find_today_page()
             
             if existing_page:
                 # If page exists, add articles to it
                 logger.info("Found existing page for today, adding articles...")
-                self._add_articles(existing_page['id'], report['articles'])
-                return existing_page['url']
+                self._add_articles(existing_page['id'], new_articles)
+                page_url = existing_page['url']
             else:
                 # If no page exists, create new one
                 logger.info("Creating new page for today...")
                 page = self._create_report_page(report)
-                self._add_articles(page['id'], report['articles'])
-                return page['url']
+                self._add_articles(page['id'], new_articles)
+                page_url = page['url']
+
+            # Save newly synced article IDs
+            self._save_synced_articles([article['id'] for article in new_articles])
+            
+            return page_url
                 
         except Exception as e:
             logger.error(f"Error syncing report to Notion: {str(e)}")
@@ -158,9 +207,6 @@ class NotionSync:
                 'multi_select': [
                     {'name': 'AI'},
                 ]
-            },
-            'article_ids': {  # Store all article IDs in a multi-select property
-                'multi_select': [{'name': article_id} for article_id in article_ids]
             }
         }
 
@@ -175,6 +221,8 @@ class NotionSync:
                 if article.get('id') and self._article_exists(article['id']):
                     logger.info(f"Article {article['title']} already exists in Notion, skipping...")
                     continue
+                    
+                if len(article['summary'])>2000:continue
 
                 # Add article title with link
                 blocks.append({
@@ -248,16 +296,8 @@ class NotionSync:
                     children=blocks
                 )
                 
-                # Update the page's article_ids property to include newly added articles
-                if added_articles:
-                    self.client.pages.update(
-                        page_id=parent_id,
-                        properties={
-                            'article_ids': {
-                                'multi_select': [{'name': article_id} for article_id in added_articles]
-                            }
-                        }
-                    )
+                # Save the article IDs to notion.json
+                self._save_synced_articles(added_articles)
             
         except Exception as e:
             logger.error(f"Error adding articles: {str(e)}")

@@ -45,7 +45,7 @@ class AIReportGenerator:
             
             # Step 2: Process articles
             logger.info("Processing articles...")
-            processed_articles = await self.processor.process_articles(articles[:2])
+            processed_articles = await self.processor.process_articles(articles)
             logger.info(f"Processed {len(processed_articles)} articles")
             
             # Step 3: Generate report

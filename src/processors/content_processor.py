@@ -113,11 +113,23 @@ class ContentProcessor:
             messages = [
                 {
                     "role": "system",
-                    "content": "You are a helpful assistant that summarizes articles concisely. Focus on the key points and main ideas. Keep the summary clear and informative."
+                    "content": """You are an expert AI content summarizer specializing in creating concise, informative summaries. Follow these guidelines:
+
+                    1. Focus on the most important and impactful information
+                    2. Highlight key insights, findings, and conclusions
+                    3. Maintain the original meaning while being concise
+                    4. Use clear, professional language
+                    5. Include relevant technical details when appropriate
+                    6. IMPORTANT: Keep the summary under 2000 characters
+
+                    Format your summary with:
+                    - Main points first
+                    - Supporting details if space allows
+                    - Technical specifics if relevant"""
                 },
                 {
                     "role": "user",
-                    "content": f"Please provide a concise summary of the following content:\n\n{content}"
+                    "content": f"Please summarize the following content following the above guidelines. Remember to keep it under 2000 characters:\n\n{content}"
                 }
             ]
             return await self._make_groq_request(messages, max_tokens=150, temperature=0.5)
