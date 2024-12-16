@@ -3,6 +3,7 @@ Main application module for AI Daily Report Generator.
 """
 import asyncio
 import logging
+import os
 from typing import Dict, List
 from datetime import datetime
 
@@ -45,6 +46,12 @@ class AIReportGenerator:
             
             # Step 2: Process articles
             logger.info("Processing articles...")
+            # Remove already synced articles
+            synced_ids = self.notion_sync._load_synced_articles()
+            logger.info(f"Loaded {len(synced_ids)} synced article IDs")
+            articles = [article for article in articles if article['id'] not in synced_ids]
+            logger.info(f"Removed {len(synced_ids)} already synced articles, {len(articles)} remaining")
+
             processed_articles = await self.processor.process_articles(articles[:2])
             logger.info(f"Processed {len(processed_articles)} articles")
             
@@ -66,7 +73,8 @@ class AIReportGenerator:
 async def run_scheduled():
     """Run the report generator on a schedule."""
     try:
-        generator = AIReportGenerator()
+        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'config.yaml')
+        generator = AIReportGenerator(config_path)
         
         while True:
             current_time = datetime.now()

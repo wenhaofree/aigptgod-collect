@@ -9,6 +9,7 @@ proxy_settings:
 
 news_sources:
   techcrunch:
+    name: techcrunch
     type: rsshub
     feed_url: https://rsshub.app/techcrunch/news
     keywords:
@@ -24,6 +25,24 @@ news_sources:
       content_selector: description
       link_selector: link
       date_selector: pubDate
+  aibase:
+    name: aibase
+    type: rsshub
+    feed_url: https://rsshub.app/aibase/news
+    keywords:
+      - ai
+      - artificial intelligence
+      - machine learning
+      - deep learning
+      - neural network
+      - gpt
+      - llm
+    parser_config:
+      title_selector: title
+      content_selector: description
+      link_selector: link
+      date_selector: pubDate
+    
   # Add more sources here as needed
   # example_source:
   #   feed_url: https://example.com/feed

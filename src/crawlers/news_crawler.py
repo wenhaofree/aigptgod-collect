@@ -174,7 +174,11 @@ class NewsCrawler:
                 content = entry.get(parser_config.get('content_selector', 'description'), '')
                 link = entry.get(parser_config.get('link_selector', 'link'), '')
                 published = entry.get(parser_config.get('date_selector', 'pubDate'), '')
-                image_url = re.search(r'<img src="([^"]+)"', entry.get('summary', '')).group(1) if entry.get('summary') else ''
+                if source_config.get('name')=='aibase':
+                    image_urls = re.findall(r'src="([^"]+)"', entry.get('summary', ''))
+                    image_url = image_urls[0] if image_urls else ''
+                elif source_config.get('name')=='techcrunch':
+                    image_url = re.search(r'<img src="([^"]+)"', entry.get('summary', '')).group(1) if entry.get('summary') else ''
             else:
                 # Traditional RSS parsing
                 title = entry.get('title', '')
