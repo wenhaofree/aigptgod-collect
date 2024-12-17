@@ -56,17 +56,20 @@ class NotionSync:
 
     def sync_report(self, report: Dict) -> str:
         """
-        Sync a report to Notion database.
+        Sync report to Notion database.
         
         Args:
-            report: Report dictionary to sync
+            report: Report to sync
             
         Returns:
-            str: URL of the created Notion page
+            str: URL to the Notion page
         """
         try:
+            logger.info(f"Starting to sync report with {len(report.get('articles', []))} articles")
+            
             # Load existing synced article IDs
             synced_ids = self._load_synced_articles()
+            logger.info(f"Loaded {len(synced_ids)} existing synced article IDs")
             
             # Filter out already synced articles
             new_articles = [
@@ -97,8 +100,10 @@ class NotionSync:
                 page_url = page['url']
 
             # Save newly synced article IDs
+            logger.info(f"Saving {len(new_articles)} new article IDs to notion.json")
             self._save_synced_articles([article['id'] for article in new_articles])
             
+            logger.info(f"Successfully synced {len(new_articles)} articles to Notion at {page_url}")
             return page_url
                 
         except Exception as e:
@@ -216,9 +221,13 @@ class NotionSync:
             blocks = []
             added_articles = []
             
-            for article in articles:
-                if len(article['summary'])>2000:continue
-
+            for i, article in enumerate(articles, 1):
+                logger.info(f"Processing article {i}/{len(articles)}: {article['title'][:50]}...")
+                
+                if len(article['summary'])>2000:
+                    logger.warning(f"Article summary too long ({len(article['summary'])} chars), skipping: {article['title'][:50]}")
+                    continue
+                
                 # Add article title with link
                 blocks.append({
                     'type': 'heading_2',
@@ -262,19 +271,19 @@ class NotionSync:
                     })
                 
                 # Add metadata (published date)
-                blocks.append({
-                    'type': 'bulleted_list_item',
-                    'bulleted_list_item': {
-                        'rich_text': [
-                            {
-                                'type': 'text',
-                                'text': {
-                                    'content': f"Published: {article['published_date']}"
-                                }
-                            }
-                        ]
-                    }
-                })
+                # blocks.append({
+                #     'type': 'bulleted_list_item',
+                #     'bulleted_list_item': {
+                #         'rich_text': [
+                #             {
+                #                 'type': 'text',
+                #                 'text': {
+                #                     'content': f"Published: {article['published_date']}"
+                #                 }
+                #             }
+                #         ]
+                #     }
+                # })
                 
                 # Add divider between articles
                 blocks.append({

@@ -217,15 +217,37 @@ class NewsCrawler:
             return None
 
     def _is_ai_related(self, entry: Dict, keywords: List[str]) -> bool:
-        """Check if an article is AI-related based on keywords."""
+        """
+        Check if an article is AI-related based on keywords, focusing on:
+        1. Large AI models (GPT, LLM, etc.)
+        2. Major tech companies (Google, Microsoft, etc.)
+        3. AI technology and developments
+        """
         # Convert all text to lowercase for case-insensitive matching
-        title = entry.title.lower()
+        title = entry.get('title', '').lower()
         summary = entry.get('summary', '').lower()
         tags = [tag.get('term', '').lower() for tag in entry.get('tags', [])]
         
-        # Check title, summary, and tags for keywords
+        # Define specific keywords for different categories
+        ai_model_keywords = {'gpt', 'llm', 'large language model', 'chatgpt', 'claude', 'gemini', 
+                           'anthropic', 'mistral', 'llama', 'palm', 'bert', 'transformer'}
+        tech_company_keywords = {'openai', 'google', 'microsoft', 'meta', 'apple', 'amazon', 
+                               'anthropic', 'tesla', 'nvidia', 'baidu', 'alibaba', 'tencent'}
+        ai_tech_keywords = {'artificial intelligence', 'machine learning', 'deep learning', 
+                          'neural network', 'ai model', 'foundation model', 'generative ai'}
+        
+        # Combine all keywords
+        all_keywords = ai_model_keywords | tech_company_keywords | ai_tech_keywords | set(k.lower() for k in keywords)
+        
+        # Check title, summary, and tags
         text_to_check = f"{title} {summary} {' '.join(tags)}"
-        return any(keyword.lower() in text_to_check for keyword in keywords)
+        
+        # Title has higher priority - if any keyword is in title, return True
+        if any(keyword in title for keyword in all_keywords):
+            return True
+            
+        # For summary and tags, require stronger relevance
+        return any(keyword in text_to_check for keyword in all_keywords)
 
     def _deduplicate_articles(self, articles: List[Dict]) -> List[Dict]:
         """Remove duplicate articles based on URL and sort by publication date."""
